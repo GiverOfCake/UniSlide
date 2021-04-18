@@ -22,6 +22,11 @@ namespace RhythmEngine.Model.Events
 		/// </summary>
 		public virtual int PrimaryTextureId { get; }
 
+		/// <summary>
+		/// Used for render positioning
+		/// </summary>
+		public virtual bool IsAir => false;
+
 
 		public Note(NoteTime time, LanePosition position)
 		{

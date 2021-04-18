@@ -127,8 +127,8 @@ namespace RhythmEngine.Parser
 
         private readonly Regex _tap = CompileRule("mmm1x: notes");//Hex bar, B36 startLane, notes
         private readonly Regex _hold = CompileRule("mmm2xy: notes");//Hex bar, B36 startLane, B36 channel, notes
-        private readonly Regex _slide1 = CompileRule("mmm3xy: notes");//Hex bar, B36 startLane, B36 channel, notes
-        private readonly Regex _slide2 = CompileRule("mmm4xy: notes");//Hex bar, B36 startLane, B36 channel, notes
+        private readonly Regex _slide = CompileRule("mmm3xy: notes");//Hex bar, B36 startLane, B36 channel, notes
+        private readonly Regex _airHold = CompileRule("mmm4xy: notes");//Hex bar, B36 startLane, B36 channel, notes
         private readonly Regex _arrow = CompileRule("mmmm5x: notes");//Hex bar, B36 startLane, notes
 
 
@@ -305,7 +305,7 @@ namespace RhythmEngine.Parser
 		            continue;
 	            }
 
-	            match = _slide1.Match(line);
+	            match = _slide.Match(line);
 	            if (match.Success)
 	            {
 		            int barNum = ParseMmm(match.Groups[1]) + barOffset;

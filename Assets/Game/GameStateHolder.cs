@@ -9,7 +9,7 @@ namespace Game
 	/// </summary>
     public class GameStateHolder : MonoBehaviour
 	{
-		public string ChartFile;
+		public string ChartFolder;
 		public int DifficultyId;
 
 		public bool AutoPlay;

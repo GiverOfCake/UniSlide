@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Game;
@@ -40,21 +41,31 @@ namespace RhythmEngine.Controller
         /// </summary>
         public double syncOffset = -0.111207;
 
-        void Start()
+        private double _invSampleRate = 0;
+        private double _lastTime = 0;
+
+        public void Start()
         {
             _noteSpawner = GetComponent<NoteSpawner>();
             _scoreManager = GetComponent<ScoreManager>();
             _stateHolder = FindObjectOfType<GameStateHolder>();
 
-            if(_stateHolder.ChartFile != null)
-				StartCoroutine(StartSong(_stateHolder.ChartFile));
+            if(_stateHolder.ChartFolder != null)
+				StartCoroutine(StartSong(_stateHolder.ChartFolder));
         }
 
-        void Update()
+        public void Update()
         {
             if(source.isPlaying)
             {
-                time = source.time + ActiveSong.Offset + syncOffset;
+                //time = source.time + ActiveSong.Offset + syncOffset;
+                time = (source.timeSamples * _invSampleRate) + ActiveSong.Offset + syncOffset;//more accurate version
+                if (time == _lastTime)
+                {
+	                Debug.LogWarning($"Spent multiple frames at time {time}");//if this happens too regularly, we may need to interpolate audio timing ourselves
+                }
+                _lastTime = time;
+
                 beat = ActiveChart.Rhythm.BeatAt(time);
             }
 
@@ -74,64 +85,20 @@ namespace RhythmEngine.Controller
 
         }
 
-        private AudioType AudioTypeFromFilename(string filename)
-        {
-	        filename = filename.ToLower();
-	        if (filename.EndsWith(".mp3") || filename.EndsWith(".mp2"))
-		        return AudioType.MPEG;
-	        if (filename.EndsWith(".ogg"))
-		        return AudioType.OGGVORBIS;
-	        if (filename.EndsWith(".wav"))
-		        return AudioType.WAV;
-	        Debug.LogError("Unknown/unsupported audio format from file: " + filename);
-	        return AudioType.UNKNOWN;
-        }
+
 
         public IEnumerator StartSong(string chartFile)
         {
-	        //TODO handle case of no slashes
-	        string directory = chartFile.Substring(0, chartFile.LastIndexOf('\\'));
-
-	        ISongParser parser = null;
-	        if (chartFile.EndsWith(".sm"))
-		        parser = new SMParser();
-	        else if (chartFile.EndsWith(".sus"))
-		        parser = new SusParser();
-	        else
-	        {
-		        Debug.LogError("Unknown chart file format in file: " + chartFile);
-		        yield return null;
-	        }
-            ActiveSong = parser.ParseSong(chartFile);
-            //ActiveSong = new SMParser().ParseSong(path + "\\BBKKBKK.sm");
-            //ActiveSong = new SMParser().ParseSong(path + "\\Oshama Scramble.sm");
-            //ActiveSong = new SMParser().ParseSong(path + "\\Splatter Party.sm");
-            //ActiveSong = new SMParser().ParseSong(path + "\\Outer Science.sm");
-
+	        var song = new SongLoader(chartFile).LoadSong();
 
             //messy temporary song initialisation for testing.
             yield return null;
-
             ActiveChart = ActiveSong.Charts[0];
 
-            var audioType = AudioTypeFromFilename(ActiveSong.AudioFile);
-            using (var www = UnityWebRequestMultimedia.GetAudioClip("file://" + directory + "\\" + ActiveSong.AudioFile, audioType))
-            {
-	            yield return www.SendWebRequest();
+            yield return AudioHelper.LoadAudio(source, ActiveSong);
+            source.Play();
+            _invSampleRate = 1.0 / source.clip.frequency;
 
-	            if (www.isNetworkError)
-	            {
-		            Debug.Log(www.error);
-	            }
-	            else
-	            {
-		            AudioClip audioClip = DownloadHandlerAudioClip.GetContent(www);
-		            source.clip = audioClip;
-		            while (source.clip.loadState != AudioDataLoadState.Loaded)
-			            yield return new WaitForSeconds(0.1f);
-		            source.Play();
-	            }
-            }
 
             //create a sorted copy with LINQ
             _notesByScoreTime = ActiveChart.Notes.OrderBy(o => o.Time.Seconds).ToList();
