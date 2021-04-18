@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Playfield Material
+  m_Shader: {fileID: -6465566751694194690, guid: 66a8e9ab3a0da8943bf9f719e92d00de,
+    type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2450
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - Texture2D_694B8418:
+        m_Texture: {fileID: 2800000, guid: 2fcc4b8f6e0220747b4814317fc123db, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+    - Vector1_10249940: 4
+    - Vector1_690E4E12: 0.8
+    - Vector1_F9DEC45E: 0.95
+    m_Colors:
+    - Color_B00D7079: {r: 1.9999998, g: 1.696335, b: 0.27225128, a: 0}
+    - Color_B7064A95: {r: 0, g: 0, b: 0, a: 0}

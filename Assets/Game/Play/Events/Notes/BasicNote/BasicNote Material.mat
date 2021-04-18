@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: BasicNote Material
+  m_Shader: {fileID: -6465566751694194690, guid: 4226ee730744eb94dab0551db3ce226c,
+    type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Floats:
+    - UnitsWide: 2
+    - Vector1_C3C24EFA: 0.1
+    - Vector1_CA3CB7EF: 0.1
+    - Vector1_FE1B97A0: 4
+    m_Colors:
+    - Color_17B3058B: {r: 0.7924528, g: 0, b: 0, a: 1}
+    - Color_438B446: {r: 0.9245283, g: 0.20496616, b: 0.20496616, a: 0}
+    - Color_4D0A5371: {r: 2, g: 2, b: 2, a: 0}
+    - Color_E52B0ECD: {r: 0.6415094, g: 0.6415094, b: 0.6415094, a: 1}
+    - EdgeCol1: {r: 1.0745099, g: 1.0745099, b: 1.0745099, a: 1}
+    - EdgeCol2: {r: 1.4117647, g: 1.4117647, b: 1.4117647, a: 0}
+    - InCol1: {r: 0.7924528, g: 0, b: 0, a: 1}
+    - InCol2: {r: 0.9245283, g: 0.2049662, b: 0.2049662, a: 0}

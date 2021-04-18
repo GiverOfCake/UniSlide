@@ -1,0 +1,56 @@
+﻿@startuml
+'https://plantuml.com/class-diagram
+
+interface IScorable {
+    UpdateScoring(InputState, time, ScoreManager)
+}
+
+abstract class Event {
+    NoteTime time
+}
+
+class BarLine extends Event
+
+abstract class Note extends Event {
+    LanePosition position
+}
+
+class AnchorNote extends Note
+
+
+
+class BasicNote extends Note Implements IScorable {
+	bool scored
+	bool hit
+}
+note bottom of BasicNote
+	To work around lack of MI,
+	classes like holds will spawn a basicNote
+	at the start (seperately) to 'share'
+	this common behaviour.
+end note
+
+abstract class HeldNote extends Note {
+    NoteTime endTime
+    NoteTime[] scoringPoints
+}
+
+
+class HoldNote extends HeldNote Implements IScorable
+
+class SlidePoint extends Note
+
+class SlideNote extends HeldNote implements IScorable
+
+SlideNote "1"-left->"*" SlidePoint
+SlidePoint "1"-left->"0..1" AnchorNote: For beizer
+
+class NoteTime {
+	double time //for scoring
+	double beat //for rendering
+}
+note bottom of NoteTime
+TODO: rewrite and store time-> position conversion
+end note
+
+@enduml

@@ -1,0 +1,18 @@
+﻿##Unity folders
+Library/
+Logs/
+Temp/
+Obj/
+UnityGenerated/
+MemoryCaptures/
+sysinfo.txt
+*.unitypackage
+
+#IDEA
+.idea/
+*.user
+*.csproj
+*.sln
+
+#Plugins to not include
+Assets/TextMesh Pro/
