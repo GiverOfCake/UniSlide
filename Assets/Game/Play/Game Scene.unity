@@ -258,9 +258,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ca7956cf1b540668ac71cf86d145ea4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ChartFile: D:\Chuni\Charts\DIY\TLTBeepBeep\Chart.sus
+  ChartFolder: D:\Chuni\Charts\DIY\TLTBeepBeep
   DifficultyId: 0
   AutoPlay: 0
+  StartFrom: 35
 --- !u!1 &653260035
 GameObject:
   m_ObjectHideFlags: 0
@@ -511,6 +512,7 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 871064955}
   m_maskType: 0
+  _SortingLayer: 0
   _SortingLayerID: 0
   _SortingOrder: 0
 --- !u!222 &871064954
@@ -1285,6 +1287,7 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 2073750039}
   m_maskType: 0
+  _SortingLayer: 0
   _SortingLayerID: 0
   _SortingOrder: 0
 --- !u!222 &2073750038

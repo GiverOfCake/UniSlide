@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Game.Play.Events.Notes
 {
+    //TODO remove, this class is basically pointless since we now have generic notes
     public class NoteSpawner : MonoBehaviour
     {
         public GameObject GenericNotePrefab;

@@ -12,9 +12,10 @@ namespace RhythmEngine.Model
         public string Directory;
         public string AudioFile;
 
-        public double Offset;
-        public double PreviewStart;
-        public double PreviewEnd;
+        //TODO things like not specifying an offset will result in below being NaN! Make sure we're NaN tolerant!
+        public double Offset = double.NaN;
+        public double PreviewStart = double.NaN;
+        public double PreviewEnd = double.NaN;
 
         public List<Chart> Charts;
 
@@ -34,11 +35,11 @@ namespace RhythmEngine.Model
 		        Artist = other.Artist;
 	        if (AudioFile == null)
 		        AudioFile = other.AudioFile;
-	        if (Offset == null)
+	        if (double.IsNaN(Offset))
 		        Offset = other.Offset;
-	        if (PreviewStart == null)
+	        if (double.IsNaN(PreviewStart))
 		        PreviewStart = other.PreviewStart;
-	        if (PreviewEnd == null)
+	        if (double.IsNaN(PreviewEnd))
 		        PreviewEnd = other.PreviewEnd;
 
 	        //combine all charts together

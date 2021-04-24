@@ -15,6 +15,7 @@ namespace RhythmEngine.Model.Events
 
 		/// <summary>
 		/// Used by the game to determine if this object should be unloaded.
+		/// TODO this could be replaced with Unity's OnBecameInvisible() if already scored!
 		/// </summary>
 		/// <returns>False if we're sure this note has been hit or is offscreen when missed; true otherwise.</returns>
 		bool IsRelevant(double beat);

@@ -33,7 +33,7 @@ namespace RhythmEngine.Parser
             input = input.Replace("mmm", @"(\d{3})");//(usually) bar number int
 
             //'end' data types
-            input = input.Replace("double", @"(\w[0-9.]+)");
+            input = input.Replace("double", @"([0-9.]+)");
             input = input.Replace("int", @"(\d+)");
             input = input.Replace("string", "\"([^\"]*)\"");
             input = input.Replace("notes", @"([0-9a-z ]{2,})");
@@ -112,6 +112,23 @@ namespace RhythmEngine.Parser
 	        }
         }
 
+        private static void ProcessChannelNotes(Match match, int barOffset, BpmGraph barToBeat, BpmGraph bpmGraph,
+	        Dictionary<int, List<PartialData>> channelData)
+        {
+	        int barNum = ParseMmm(match.Groups[1]) + barOffset;
+	        int lane = ParseXY(match.Groups[2]);
+	        int channel = ParseXY(match.Groups[3]);
+	        ProcessNotes(match.Groups[4], (barOff, type, width) =>
+	        {
+		        double beat = barToBeat.BeatAt(barNum + barOff);
+		        var time = bpmGraph.FromBeat(beat);
+		        var pos = new LanePosition(lane * 2, width * 2);
+		        if (!channelData.ContainsKey(channel))
+			        channelData.Add(channel, new List<PartialData>());
+		        channelData[channel].Add(new PartialData(type, pos, time));
+	        });
+        }
+
 
         private readonly Regex _wave = CompileRule("WAVE string");//audio file
         private readonly Regex _waveOffset = CompileRule("WAVEOFFSET double");//audio offset
@@ -129,7 +146,7 @@ namespace RhythmEngine.Parser
         private readonly Regex _hold = CompileRule("mmm2xy: notes");//Hex bar, B36 startLane, B36 channel, notes
         private readonly Regex _slide = CompileRule("mmm3xy: notes");//Hex bar, B36 startLane, B36 channel, notes
         private readonly Regex _airHold = CompileRule("mmm4xy: notes");//Hex bar, B36 startLane, B36 channel, notes
-        private readonly Regex _arrow = CompileRule("mmmm5x: notes");//Hex bar, B36 startLane, notes
+        private readonly Regex _arrow = CompileRule("mmm5x: notes");//Hex bar, B36 startLane, notes
 
 
         public Song ParseSong(string filename)
@@ -198,7 +215,7 @@ namespace RhythmEngine.Parser
                 match = _waveOffset.Match(line);
                 if (match.Success)
                 {
-                    song.Offset = double.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+                    song.Offset = ParseDouble(match.Groups[1]);
                     continue;
                 }
 
@@ -239,6 +256,7 @@ namespace RhythmEngine.Parser
 
             var holdData = new Dictionary<int, List<PartialData>>();
             var slideData = new Dictionary<int, List<PartialData>>();
+            var airData = new Dictionary<int, List<PartialData>>();
 
             //PASS 3: read all note data
             for (int i = 0; i < data.Count; i++)
@@ -278,7 +296,7 @@ namespace RhythmEngine.Parser
 					            break;
 				            //TODO types 5 & 6
 				            default:
-					            Debug.LogError($"Unknown tap type {type} at time {time} position {pos}");
+					            Debug.LogError($"Ignoring unknown tap type {type} at time {time} position {pos}");
 					            break;
 			            }
 		            });
@@ -287,41 +305,77 @@ namespace RhythmEngine.Parser
 		            continue;
 	            }
 
-	            match = _hold.Match(line);
+	            match = _arrow.Match(line);
 	            if (match.Success)
 	            {
 		            int barNum = ParseMmm(match.Groups[1]) + barOffset;
 		            int lane = ParseXY(match.Groups[2]);
-		            int channel = ParseXY(match.Groups[3]);
-		            ProcessNotes(match.Groups[4], (barOff, type, width) =>
+		            ProcessNotes(match.Groups[3], (barOff, type, width) =>
 		            {
 			            double beat = barToBeat.BeatAt(barNum + barOff);
 			            var time = bpmGraph.FromBeat(beat);
 			            var pos = new LanePosition(lane * 2, width * 2);
-			            if (!holdData.ContainsKey(channel))
-				            holdData.Add(channel, new List<PartialData>());
-				        holdData[channel].Add(new PartialData(type, pos, time));
+			            bool isUp = true;
+			            int arrowShift = 0;
+			            //convert the 6 cases to up/down/left/right/center information
+			            switch (type)
+			            {
+				            case 1:
+					            isUp = true;
+					            arrowShift = 0;
+					            break;
+				            case 2:
+					            isUp = false;
+					            arrowShift = 0;
+					            break;
+				            case 3:
+					            isUp = true;
+					            arrowShift = -1;
+					            break;
+				            case 4:
+					            isUp = true;
+					            arrowShift = +1;
+					            break;
+				            case 5:
+					            isUp = false;
+					            arrowShift = +1;//inverted because down
+					            break;
+				            case 6:
+					            isUp = false;
+					            arrowShift = -1;//inverted because down
+					            break;
+				            default:
+					            Debug.LogError($"Unknown Air Arrow {type} at time {time} position {pos}");
+					            break;
+			            }
+			            notes.Add(new AirArrow(time, pos, isUp, arrowShift));
 		            });
+
+			            continue;
+	            }
+	            //matching holds, airholds and slides are basically exactly the same, the only thing that changes is the output array
+
+	            match = _hold.Match(line);
+	            if (match.Success)
+	            {
+		            ProcessChannelNotes(match, barOffset, barToBeat, bpmGraph, holdData);
+		            continue;
+	            }
+
+	            match = _airHold.Match(line);
+	            if (match.Success)
+	            {
+		            ProcessChannelNotes(match, barOffset, barToBeat, bpmGraph, airData);
 		            continue;
 	            }
 
 	            match = _slide.Match(line);
 	            if (match.Success)
 	            {
-		            int barNum = ParseMmm(match.Groups[1]) + barOffset;
-		            int lane = ParseXY(match.Groups[2]);
-		            int channel = ParseXY(match.Groups[3]);
-		            ProcessNotes(match.Groups[4], (barOff, type, width) =>
-		            {
-			            double beat = barToBeat.BeatAt(barNum + barOff);
-			            var time = bpmGraph.FromBeat(beat);
-			            var pos = new LanePosition(lane * 2, width * 2);
-			            if (!slideData.ContainsKey(channel))
-				            slideData.Add(channel, new List<PartialData>());
-			            slideData[channel].Add(new PartialData(type, pos, time));
-		            });
+		            ProcessChannelNotes(match, barOffset, barToBeat, bpmGraph, slideData);
 		            continue;
 	            }
+
 	            //reach here, nothing matched, so we didn't read this line after all
 	            hasBeenRead[i] = false;
 
@@ -332,6 +386,8 @@ namespace RhythmEngine.Parser
             //sort note data and store length so we can use this for lookups on start/end of holds (TODO)
             notes.Sort((a, b) => a.Time.Beats.CompareTo(b.Time.Beats));
             int noteDataLength = notes.Count;
+
+            //TODO a lot of code below for (air)holds/slides is shared, may be useful to combine these into a generic function
 
             //holds:
             foreach (var holdChannel in holdData.Values)
@@ -364,7 +420,48 @@ namespace RhythmEngine.Parser
 				            startingPoint = null;
 				            break;
 			            case 3://relay
-				            Debug.LogWarning($"Skipping hold relay point"); //why tf do holds need relay points???
+				            Debug.LogWarning($"Skipping hold relay point"); //TODO (will be fixed if we merge slide and hold parsing code)
+				            break;
+			            default:
+				            Debug.LogError($"Unknown hold point type {dataPoint.Type} found at {dataPoint.Time}");
+				            break;
+		            }
+	            }
+            }
+
+            //air holds:
+            foreach (var airChannel in airData.Values)
+            {
+	            //first sort all hold data in this channel
+	            airChannel.Sort((a, b) => a.Time.Beats.CompareTo(b.Time.Beats));
+	            //now walk through each in sequence with a state machine to assemble the holds
+
+	            PartialData? startingPoint = null;
+
+	            foreach (var dataPoint in airChannel)
+	            {
+		            switch (dataPoint.Type)
+		            {
+			            case 1://start
+				            if(startingPoint != null)
+					            Debug.LogError($"Air hold started on channel with already active hold at {startingPoint?.Time}");
+				            startingPoint = dataPoint;
+				            break;
+			            case 2://end
+				            if (startingPoint == null)
+				            {
+					            Debug.LogError($"Attempt to end air hold at {dataPoint.Time} without a starting point.");
+					            continue;
+				            }
+
+				            var airHold = new AirHold(startingPoint.Value.Time, dataPoint.Pos, new SlidePoint[1]);
+				            airHold.SlidePoints[0] = new SlidePoint(airHold, dataPoint.Time, airHold.Position);
+				            notes.Add(airHold);
+				            notes.Add(new AirAction(dataPoint.Time, dataPoint.Pos));
+				            startingPoint = null;
+				            break;
+			            case 3://relay
+				            notes.Add(new AirAction(dataPoint.Time, dataPoint.Pos));
 				            break;
 			            default:
 				            Debug.LogError($"Unknown hold point type {dataPoint.Type} found at {dataPoint.Time}");

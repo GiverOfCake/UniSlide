@@ -7,6 +7,11 @@ namespace RhythmEngine.Model
     /// </summary>
     public class InputState
     {
+
+	    //TODO we will likely benefit with storing time since down events as well -- we could figure out which notes 'add' to the start of a touch
+		// (e.g. 3 notes pressed 'at once' may not arrive 'at once' on our side) such that we can avoid multiple notes being hit from the same tap!
+		// This information could also be used to better understand swipe notes
+
 	    /// <summary>
 	    /// Holds information about the current state of input.
 	    /// </summary>

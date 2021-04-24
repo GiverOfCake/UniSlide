@@ -18,9 +18,11 @@ namespace Game.Play.Events.Notes
 
         public float NoteHeight = 0.02f;
         public float SliderHeight = 0.01f;
+        public float AirHeight = 5f;
 
         public GameObject NoteMeshPrefab;
         public GameObject TrackMeshPrefab;
+        public GameObject ArrowMeshPrefab;
 
         private static readonly int NoteTextureCount = 8;
 
@@ -44,6 +46,14 @@ namespace Game.Play.Events.Notes
 	        noteMesh.transform.localPosition = new Vector3(0, 0, 0);//mesh will hold further offsets
 	        _trackController = noteMesh.GetComponent<TrackMeshController>();//store this component for later updates
 		    _trackController.Init(heldNote);//generate mesh
+        }
+
+        private void InitArrowMesh(AirArrow airArrow)
+        {
+	        var arrowMesh = Instantiate(ArrowMeshPrefab);//new generic arrow mesh
+	        arrowMesh.transform.parent = transform;//parent to us
+	        arrowMesh.transform.localPosition = new Vector3(airArrow.Position.Center, 0, 0);//offset from us
+	        arrowMesh.GetComponent<AirArrowSetup>().Init(airArrow);//generate mesh
         }
 
         public void Init(Note note, ScoreManager scoreManager, TimeManager timeManager)
@@ -75,7 +85,12 @@ namespace Game.Play.Events.Notes
 				_height = SliderHeight;
 			}
 
-			// [handling of air note types to go here]
+			if (note.IsAir)
+				_height += AirHeight;
+
+			//air arrows have special rendering
+			if (note is AirArrow)
+				InitArrowMesh((AirArrow)note);
 
 			UpdateScroll();
         }

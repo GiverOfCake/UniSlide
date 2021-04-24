@@ -44,7 +44,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NoteHeight: 0.02
+  SliderHeight: 0.01
+  AirHeight: 5
   NoteMeshPrefab: {fileID: 6197553968257566487, guid: 9a49bc9da355ecc46ab8025e46c45ab9,
     type: 3}
   TrackMeshPrefab: {fileID: 8496376647580005256, guid: 711b3097669604d4b9f165a093058858,
+    type: 3}
+  ArrowMeshPrefab: {fileID: 8003335053542689636, guid: 4aa95b0ed1d4be645befc1409d0cc435,
     type: 3}
