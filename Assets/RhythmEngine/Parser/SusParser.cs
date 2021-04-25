@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using RhythmEngine.Model;
 using RhythmEngine.Model.Events;
 using RhythmEngine.Model.Events.Hand;
+using RhythmEngine.Model.TimingConversion;
 using UnityEngine;
 
 namespace RhythmEngine.Parser
@@ -112,7 +113,7 @@ namespace RhythmEngine.Parser
 	        }
         }
 
-        private static void ProcessChannelNotes(Match match, int barOffset, BpmGraph barToBeat, BpmGraph bpmGraph,
+        private static void ProcessChannelNotes(Match match, int barOffset, TimingConverter barToBeat, NoteTimeFactory ntf,
 	        Dictionary<int, List<PartialData>> channelData)
         {
 	        int barNum = ParseMmm(match.Groups[1]) + barOffset;
@@ -120,8 +121,8 @@ namespace RhythmEngine.Parser
 	        int channel = ParseXY(match.Groups[3]);
 	        ProcessNotes(match.Groups[4], (barOff, type, width) =>
 	        {
-		        double beat = barToBeat.BeatAt(barNum + barOff);
-		        var time = bpmGraph.FromBeat(beat);
+		        double beat = barToBeat.ConvertForward(barNum + barOff);
+		        var time = ntf.FromBeat(beat);
 		        var pos = new LanePosition(lane * 2, width * 2);
 		        if (!channelData.ContainsKey(channel))
 			        channelData.Add(channel, new List<PartialData>());
@@ -141,6 +142,9 @@ namespace RhythmEngine.Parser
 
         private readonly Regex _bpmDef = CompileRule("BPMzz: double");//B36 BpmId, double newBpm
         private readonly Regex _bpmChange = CompileRule("mmm08: int");//Hex barNumber, int BpmId
+        private readonly Regex _hispeedDef = CompileRule("TILzz: string");//B36 HispeedId, string data
+        private readonly Regex _hispeedChange = CompileRule("HISPEED zz");//B36 HispeedId
+        private readonly Regex _hispeedOff = CompileRule("NOSPEED");
 
         private readonly Regex _tap = CompileRule("mmm1x: notes");//Hex bar, B36 startLane, notes
         private readonly Regex _hold = CompileRule("mmm2xy: notes");//Hex bar, B36 startLane, B36 channel, notes
@@ -151,6 +155,8 @@ namespace RhythmEngine.Parser
 
         public Song ParseSong(string filename)
         {
+	        double scrollSpeed = 50; //TODO don't hardcode this
+
             var theSourceFile = new FileInfo(filename);
             var reader = theSourceFile.OpenText();
 
@@ -168,9 +174,8 @@ namespace RhythmEngine.Parser
             bool[] hasBeenRead = new bool[data.Count];
 
             int ticksPerBeat = 480;//default
-            int beatsPerBar = 4;//default TODO this is being ignored! should be slowing down approach rate/effective BPM when increased
             int barOffset = 0;//default
-            Song song = new Song();
+            var song = new Song();
 
 
             var barSections = new List<BarSection>();
@@ -224,7 +229,7 @@ namespace RhythmEngine.Parser
             }
 
             //We now have enough information to construct the Bar->Beat converter
-            var barToBeat = BpmGraph.ParseBars(barSections);
+            var barToBeat = TimingConverter.ParseBars(barSections);
 
             var bpmChanges = new List<BeatEvent>();
             //PASS 2: construct internal rhythm model
@@ -241,7 +246,7 @@ namespace RhythmEngine.Parser
                 var match = _bpmChange.Match(line);
                 if (match.Success)
                 {
-                    bpmChanges.Add(new BeatEvent(barToBeat.BeatAt(ParseMmm(match.Groups[1])), bpmDefinitions[ParseInt(match.Groups[2])]));
+                    bpmChanges.Add(new BeatEvent(barToBeat.ConvertForward(ParseMmm(match.Groups[1])), bpmDefinitions[ParseInt(match.Groups[2])]));
                     continue;
                 }
 
@@ -251,7 +256,9 @@ namespace RhythmEngine.Parser
             }
 			//We can now construct our BPM Graph, which means we now have everything needed to start parsing notes.
 			bpmChanges.Sort((a, b) => a.beat.CompareTo(b.beat));
-            BpmGraph bpmGraph = BpmGraph.ParseBpm(bpmChanges, Array.Empty<BeatEvent>());
+            TimingConverter bpmGraph = TimingConverter.ParseBpm(bpmChanges, Array.Empty<BeatEvent>());
+            var defaultNtf = new NoteTimeFactory(bpmGraph, TimingConverter.ParseNotespeed(new List<SpeedSection>(), scrollSpeed), false);
+            var ntf = defaultNtf;
 
             var notes = new List<RhythmEvent>();
 
@@ -277,8 +284,8 @@ namespace RhythmEngine.Parser
 		            int lane = ParseXY(match.Groups[2]);
 		            ProcessNotes(match.Groups[3], (barOff, type, width) =>
 		            {
-			            double beat = barToBeat.BeatAt(barNum + barOff);
-			            var time = bpmGraph.FromBeat(beat);
+			            double beat = barToBeat.ConvertForward(barNum + barOff);
+			            var time = ntf.FromBeat(beat);
 			            var pos = new LanePosition(lane * 2, width * 2);
 			            switch (type)
 			            {
@@ -313,8 +320,8 @@ namespace RhythmEngine.Parser
 		            int lane = ParseXY(match.Groups[2]);
 		            ProcessNotes(match.Groups[3], (barOff, type, width) =>
 		            {
-			            double beat = barToBeat.BeatAt(barNum + barOff);
-			            var time = bpmGraph.FromBeat(beat);
+			            double beat = barToBeat.ConvertForward(barNum + barOff);
+			            var time = ntf.FromBeat(beat);
 			            var pos = new LanePosition(lane * 2, width * 2);
 			            bool isUp = true;
 			            int arrowShift = 0;
@@ -359,21 +366,21 @@ namespace RhythmEngine.Parser
 	            match = _hold.Match(line);
 	            if (match.Success)
 	            {
-		            ProcessChannelNotes(match, barOffset, barToBeat, bpmGraph, holdData);
+		            ProcessChannelNotes(match, barOffset, barToBeat, ntf, holdData);
 		            continue;
 	            }
 
 	            match = _airHold.Match(line);
 	            if (match.Success)
 	            {
-		            ProcessChannelNotes(match, barOffset, barToBeat, bpmGraph, airData);
+		            ProcessChannelNotes(match, barOffset, barToBeat, ntf, airData);
 		            continue;
 	            }
 
 	            match = _slide.Match(line);
 	            if (match.Success)
 	            {
-		            ProcessChannelNotes(match, barOffset, barToBeat, bpmGraph, slideData);
+		            ProcessChannelNotes(match, barOffset, barToBeat, ntf, slideData);
 		            continue;
 	            }
 

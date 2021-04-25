@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using RhythmEngine.Model.TimingConversion;
 using UnityEngine;
 
 namespace RhythmEngine.Model.Events
@@ -27,7 +28,7 @@ namespace RhythmEngine.Model.Events
 	        SlidePoints = slidePoints;
         }
 
-        public override bool IsRelevant(double beat)
+        public override bool IsRelevant(double beat, double seconds)
         {
 	        return EndTime.Beats >= beat;
         }
@@ -40,8 +41,8 @@ namespace RhythmEngine.Model.Events
 		        sectionCount += slidePoint.MeshSectionsNeeded(sectionsPerBeat);
 	        var triangles = new int[(sectionCount - 1) * 2 * 3];
 
-	        //vertical scaling will fix real world matching. 1 beat = 1 Z unit (Z 0 = start point).
-	        //X = lane (0-32). Y = 0. Z = length in Beats.
+	        //vertical scaling will fix real world matching. (Z 0 = start point, Z 1 = end point).
+	        //X = lane (0-32). Y = 0. Z = progress along track.
 	        var vertices = new Vector3[sectionCount * 2];
 	        var uvs = new Vector2[sectionCount * 2];
 
@@ -55,16 +56,15 @@ namespace RhythmEngine.Model.Events
 			        t = 1 - t;// 1 ... > 0 (since we're going in reverse, and 0 = previous point)
 			        float center = slidePoint.PositionAt(t);
 			        float halfWidth = slidePoint.WidthAt(t) / 2;
-			        float beat = slidePoint.BeatAt(t);
-			        //TODO below assumes all relay points are invisible: we need to calculate up to next relay point and then reverse until next/last!
-			        float progress = Mathf.InverseLerp((float) EndTime.Beats, (float) Time.Beats, beat);
-			        beat -= (float)Time.Beats;//range from 0 to length
+			        float time = slidePoint.TimeAt(t);
+			        float totalProgress = Mathf.InverseLerp((float) EndTime.Seconds, (float) Time.Seconds, time);
 			        int v0 = sectionIndex * 2;
 			        int v1 = v0 + 1;
-			        vertices[v0] = new Vector3(center - halfWidth, 0f, beat);
-			        vertices[v1] = new Vector3(center + halfWidth, 0f, beat);
-			        uvs[v0]      = new Vector2(TrackUvStart, progress);
-			        uvs[v1]      = new Vector2(TrackUvEnd, progress);
+			        vertices[v0] = new Vector3(center - halfWidth, 0f, totalProgress);
+			        vertices[v1] = new Vector3(center + halfWidth, 0f, totalProgress);
+			        //TODO below assumes all relay points are invisible: we need to calculate up to next relay point and then reverse until next/last!
+			        uvs[v0]      = new Vector2(TrackUvStart, totalProgress);
+			        uvs[v1]      = new Vector2(TrackUvEnd, totalProgress);
 			        sectionIndex++;
 		        }
 	        }

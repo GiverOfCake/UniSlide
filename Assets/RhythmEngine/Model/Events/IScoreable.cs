@@ -1,4 +1,5 @@
 ﻿using RhythmEngine.Controller;
+using RhythmEngine.Model.TimingConversion;
 
 namespace RhythmEngine.Model.Events
 {
@@ -18,6 +19,6 @@ namespace RhythmEngine.Model.Events
 		/// TODO this could be replaced with Unity's OnBecameInvisible() if already scored!
 		/// </summary>
 		/// <returns>False if we're sure this note has been hit or is offscreen when missed; true otherwise.</returns>
-		bool IsRelevant(double beat);
+		bool IsRelevant(double beat, double seconds);
 	}
 }

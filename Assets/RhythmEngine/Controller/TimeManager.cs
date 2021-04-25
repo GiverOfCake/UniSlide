@@ -93,7 +93,7 @@ namespace RhythmEngine.Controller
                 }
                 _lastTrueTime = _trueTime;
 
-                beat = ActiveChart.Rhythm.BeatAt(time);
+                beat = ActiveChart.Rhythm.ConvertForward(time);
             }
 
             //advance note scoring queue if necessary:

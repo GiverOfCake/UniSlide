@@ -1,4 +1,5 @@
 ﻿using RhythmEngine.Controller;
+using RhythmEngine.Model.TimingConversion;
 
 namespace RhythmEngine.Model.Events.Hand
 {

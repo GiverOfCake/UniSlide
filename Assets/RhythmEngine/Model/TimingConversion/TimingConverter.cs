@@ -4,35 +4,33 @@ using System.Globalization;
 using System.Linq;
 using UnityEngine.Assertions;
 
-namespace RhythmEngine.Model
+namespace RhythmEngine.Model.TimingConversion
 {
-    public class BpmGraph
+    public class TimingConverter
     {
-        //TODO: this class doesn't yet handle true negative BPM and naively assumes each beat happens at only 1 possible time.
+        public List<TimingSection> BpmSections;
 
-        public List<BpmSection> BpmSections;
+        private TimingSection _forwardCache = null;
+        private TimingSection _reverseCache = null;
 
-        private BpmSection _beatCache = null;
-        private BpmSection _timeCache = null;
-
-        public BpmGraph(List<BpmSection> sections)
+        public TimingConverter(List<TimingSection> sections)
         {
             BpmSections = sections;
         }
 
-        public static BpmGraph ParseBars(List<BarSection> barSections)
+        public static TimingConverter ParseBars(List<BarSection> barSections)
         {
-	        //In this context, 'time' = bar (beat is still beat)
+	        //In this context, from = bar, to = beat
 	        barSections.Sort((a, b) => a.StartBar.CompareTo(b.StartBar));
-	        var barToBeatSections = new List<BpmSection>();
+	        var barToBeatSections = new List<TimingSection>();
 	        double maxBar = 100_000;
-	        var lastBarSection = new BpmSection(0, maxBar, 0, maxBar * 4);//default bar section for default Beats Per Bar of 4
+	        var lastBarSection = new TimingSection(0, maxBar, 0, maxBar * 4);//default bar section for default Beats Per Bar of 4
 	        barToBeatSections.Add(lastBarSection);
 	        foreach (var bar in barSections)
 	        {
 		        double startBeat = lastBarSection.BeatAt(bar.StartBar);
 		        double endBeat = (maxBar - bar.StartBar) * bar.NewBeatsPerBar + startBeat;
-		        var section = new BpmSection(bar.StartBar, maxBar, startBeat, endBeat);
+		        var section = new TimingSection(bar.StartBar, maxBar, startBeat, endBeat);
 		        //modify the last section to end here
 		        lastBarSection.EndBeat = startBeat;
 		        lastBarSection.EndTime = bar.StartBar;
@@ -43,12 +41,37 @@ namespace RhythmEngine.Model
 		        lastBarSection = section;
 	        }
 
-	        return new BpmGraph(barToBeatSections);
+	        return new TimingConverter(barToBeatSections);
         }
 
-        public static BpmGraph ParseBpm(IList<BeatEvent> changes, IList<BeatEvent> stops)
+        public static TimingConverter ParseNotespeed(List<SpeedSection> speedSections, double scrollSpeedMult)
         {
-            var beatGraph = new List<BpmSection>(changes.Count);
+	        speedSections.Sort((a, b) => a.Time.CompareTo(b.Time));
+	        double maxTime = 100_000;
+	        var lastSection = new TimingSection(0, maxTime, 0, maxTime * scrollSpeedMult);
+	        var timeToPosSections = new List<TimingSection>();
+	        timeToPosSections.Add(lastSection);
+	        foreach (var speed in speedSections)
+	        {
+		        double startPosition = lastSection.BeatAt(speed.Time);
+		        double endPosition = (maxTime - speed.Time) * (speed.SpeedMultiplier * scrollSpeedMult) + startPosition;
+		        var section = new TimingSection(speed.Time, maxTime, startPosition, endPosition);
+		        //modify the last section to end here
+		        lastSection.EndBeat = startPosition;
+		        lastSection.EndTime = speed.Time;
+
+		        Assert.AreApproximatelyEqual((float)(speed.SpeedMultiplier * scrollSpeedMult), (float)section.Slope());
+
+		        timeToPosSections.Add(section);
+		        lastSection = section;
+	        }
+
+	        return new TimingConverter(timeToPosSections);
+        }
+
+        public static TimingConverter ParseBpm(IList<BeatEvent> changes, IList<BeatEvent> stops)
+        {
+            var beatGraph = new List<TimingSection>(changes.Count);
 
             double curBps;
             double curBeat;
@@ -66,7 +89,7 @@ namespace RhythmEngine.Model
                 nextBps = 60.0 / change.change;
 
                 double endTime = time + (nextBeat - curBeat) * curBps;
-                beatGraph.Add(new BpmSection(time, endTime, curBeat, nextBeat));
+                beatGraph.Add(new TimingSection(time, endTime, curBeat, nextBeat));
                 time = endTime;
             }
 
@@ -75,11 +98,11 @@ namespace RhythmEngine.Model
             nextBeat = Math.Pow(10, 5);//last segment: make it practically infinitely long
             double lastEndTime = time + (nextBeat - curBeat) * curBps;
 
-            beatGraph.Add(new BpmSection(time, lastEndTime, curBeat, nextBeat));//insert last segment
+            beatGraph.Add(new TimingSection(time, lastEndTime, curBeat, nextBeat));//insert last segment
 
-            var finalGraph = new List<BpmSection>(changes.Count + stops.Count);
+            var finalGraph = new List<TimingSection>(changes.Count + stops.Count);
             int beatPos = 1;//array index (first one already used)
-            BpmSection currentSegment = beatGraph[0];
+            TimingSection currentSegment = beatGraph[0];
             double timeOffset = 0.0;
             foreach(var stop in stops)
             {
@@ -97,9 +120,9 @@ namespace RhythmEngine.Model
                 //cut it in half, insert first half and stop, set currentSegment to second half.
                 double midTime = currentSegment.TimeAt(beat);
 
-                BpmSection firstHalf = new BpmSection(currentSegment.StartTime, midTime, currentSegment.StartBeat, beat);
-                BpmSection stopSection = new BpmSection(midTime, midTime + delay, beat, beat);
-                BpmSection secondHalf = new BpmSection(midTime + delay, currentSegment.EndTime + delay, beat, currentSegment.EndBeat);
+                TimingSection firstHalf = new TimingSection(currentSegment.StartTime, midTime, currentSegment.StartBeat, beat);
+                TimingSection stopSection = new TimingSection(midTime, midTime + delay, beat, beat);
+                TimingSection secondHalf = new TimingSection(midTime + delay, currentSegment.EndTime + delay, beat, currentSegment.EndBeat);
 
                 finalGraph.Add(firstHalf);
                 finalGraph.Add(stopSection);
@@ -111,19 +134,19 @@ namespace RhythmEngine.Model
             //add any remaining segments
             while(beatPos != changes.Count)
             {
-                BpmSection seg = beatGraph[beatPos++];
+                TimingSection seg = beatGraph[beatPos++];
                 seg.StartTime += timeOffset;
                 seg.EndTime += timeOffset;
                 finalGraph.Add(seg);
             }
-            return new BpmGraph(finalGraph);
+            return new TimingConverter(finalGraph);
         }
 
-        public double BeatAt(double time)
+        public double ConvertForward(double time)
         {
             //check if last entry is valid for efficiency
-            if(_beatCache != null && _beatCache.EndTime >= time && _beatCache.StartTime <= time)
-                return _beatCache.BeatAt(time);//reuse cache
+            if(_forwardCache != null && _forwardCache.EndTime >= time && _forwardCache.StartTime <= time)
+                return _forwardCache.BeatAt(time);//reuse cache
 
             //(trivial) edge case
             if(BpmSections.Count == 1)
@@ -141,16 +164,16 @@ namespace RhythmEngine.Model
                 {
                     if(BpmSections[min].TimeInBounds(time))
                     {
-                        _beatCache = BpmSections[min];
+                        _forwardCache = BpmSections[min];
                         return BpmSections[min].BeatAt(time);
                     }
                     else
                     {
-                        _beatCache = BpmSections[max];
+                        _forwardCache = BpmSections[max];
                         return BpmSections[max].BeatAt(time);
                     }
                 }
-                BpmSection mid = BpmSections[midpt];
+                TimingSection mid = BpmSections[midpt];
                 if(mid.EndTime > time)
                 {
                     max = midpt;
@@ -161,21 +184,21 @@ namespace RhythmEngine.Model
                 }
                 else
                 {
-                    _beatCache = mid;
+                    _forwardCache = mid;
                     return mid.BeatAt(time);
                 }
             }
         }
 
-        public double TimeAt(double beat)
+        public double ConvertReverse(double time)
         {
             //check if last entry is valid for efficiency
-            if(_timeCache != null && _timeCache.EndBeat >= beat && _timeCache.StartBeat <= beat)
-                return _timeCache.TimeAt(beat);//reuse cache
+            if(_reverseCache != null && _reverseCache.EndBeat >= time && _reverseCache.StartBeat <= time)
+                return _reverseCache.TimeAt(time);//reuse cache
 
             //(trivial) edge case
             if(BpmSections.Count == 1)
-                return BpmSections[0].TimeAt(beat);
+                return BpmSections[0].TimeAt(time);
 
             //binary search
             int min = 0;
@@ -186,42 +209,33 @@ namespace RhythmEngine.Model
                 int midpt = (min + max) / 2;
                 if(max - min == 1)//right next to each other
                 {
-                    if(BpmSections[min].BeatInBounds(beat))
+                    if(BpmSections[min].BeatInBounds(time))
                     {
-                        _timeCache = BpmSections[min];
-                        return BpmSections[min].TimeAt(beat);
+                        _reverseCache = BpmSections[min];
+                        return BpmSections[min].TimeAt(time);
                     }
                     else
                     {
-                        _timeCache = BpmSections[max];
-                        return BpmSections[max].TimeAt(beat);
+                        _reverseCache = BpmSections[max];
+                        return BpmSections[max].TimeAt(time);
                     }
                 }
-                BpmSection mid = BpmSections[midpt];
+                TimingSection mid = BpmSections[midpt];
 
-                if(mid.EndBeat > beat)
+                if(mid.EndBeat > time)
                 {
                     max = midpt;
                 }
-                else if(mid.StartBeat < beat)
+                else if(mid.StartBeat < time)
                 {
                     min = midpt;
                 }
                 else
                 {
-                    _timeCache = mid;
-                    return mid.TimeAt(beat);
+                    _reverseCache = mid;
+                    return mid.TimeAt(time);
                 }
             }
-        }
-
-        public NoteTime FromTime(double time, double approachRateMultiplier = 40.0)
-        {
-            return new NoteTime(time, BeatAt(time), approachRateMultiplier);
-        }
-        public NoteTime FromBeat(double beat, double approachRateMultiplier = 40.0)
-        {
-            return new NoteTime(TimeAt(beat), beat, approachRateMultiplier);
         }
     }
 
@@ -253,5 +267,11 @@ namespace RhythmEngine.Model
 		    StartBar = startBar;
 		    NewBeatsPerBar = newBeatsPerBar;
 	    }
+    }
+
+    public struct SpeedSection
+    {
+	    public double Time;//converted from bar number/tick
+	    public double SpeedMultiplier;
     }
 }

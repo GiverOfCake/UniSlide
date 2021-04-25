@@ -78,8 +78,11 @@ namespace Game.Play.Events.Notes
 				//generate meshes for all visible anchor points:
 				foreach (var slidePoint in heldNote.SlidePoints)
 				{
-					if(slidePoint.Visible)
-						InitNoteMesh(slidePoint.PrimaryTextureId, slidePoint.Position, (float)((slidePoint.Time.Beats - note.Time.Beats) * note.Time.ApproachRateMultiplier));
+					if (slidePoint.Visible)
+					{
+						float vOff = note.Time.PositionAt(0, 0) - slidePoint.Time.PositionAt(0, 0);
+						InitNoteMesh(slidePoint.PrimaryTextureId, slidePoint.Position, vOff);
+					}
 				}
 
 				_height = SliderHeight;
@@ -98,7 +101,7 @@ namespace Game.Play.Events.Notes
         public void Update()
         {
             UpdateScroll();
-            if (!Note.IsRelevant(_timeManager.beat))
+            if (!Note.IsRelevant(_timeManager.beat, _timeManager.time))
             {
 	            //No longer relevant: destroy all children, then ourselves.
                 for (int i = 0; i < transform.childCount; i++)
@@ -111,7 +114,7 @@ namespace Game.Play.Events.Notes
 
         private void UpdateScroll()
         {
-            float newZ = (float) ((Note.Time.Beats - _timeManager.beat) * Note.Time.ApproachRateMultiplier);
+            float newZ = Note.Time.PositionAt(_timeManager.time, _timeManager.beat);
             transform.position = new Vector3(0, _height, newZ);
         }
     }

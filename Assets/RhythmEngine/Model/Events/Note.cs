@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Resources;
 using RhythmEngine.Controller;
+using RhythmEngine.Model.TimingConversion;
 using UnityEngine;
 
 namespace RhythmEngine.Model.Events

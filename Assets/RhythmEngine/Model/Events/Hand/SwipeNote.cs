@@ -1,5 +1,6 @@
 ﻿using System;
 using RhythmEngine.Controller;
+using RhythmEngine.Model.TimingConversion;
 using UnityEngine;
 
 namespace RhythmEngine.Model.Events.Hand
@@ -67,15 +68,14 @@ namespace RhythmEngine.Model.Events.Hand
 		/// Used by the game to determine if this object should be unloaded.
 		/// </summary>
 		/// <returns>False if we're sure this note has been hit or is offscreen when missed; true otherwise.</returns>
-		public override bool IsRelevant(double beat)
+		public override bool IsRelevant(double beat, double seconds)
 		{
 			if (Hit)
 				return false;//already hit this note, we no longer need it on screen.
 
 			//else, check if we're way past missing:
-			double relativeBeat = ((Time.Beats - beat) * Time.ApproachRateMultiplier);
-			//TODO take into account time as well for high BPM/approach rate late hits (offscreen but still valid)!
-			if (relativeBeat < -2)
+			double position = Time.PositionAt(seconds, beat);
+			if (position < -2)
 			{
 				//so we're offscreen, but we need to be sure we're not at ultra-high BPM and that there's no chance this note can count as a hit.
 				if (Scored)

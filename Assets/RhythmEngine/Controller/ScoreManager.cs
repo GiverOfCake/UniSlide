@@ -95,7 +95,7 @@ namespace RhythmEngine.Controller
                 note.UpdateScoring(_inputState, this);
             }
             //remove all no longer relevant notes
-            ActivelyScoring.RemoveAll(item => item.IsRelevant(_timeManager.beat) == false);
+            ActivelyScoring.RemoveAll(item => item.IsRelevant(_timeManager.beat, _timeManager.time) == false);
         }
 
         /// <summary>

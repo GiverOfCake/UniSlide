@@ -1,4 +1,6 @@
-﻿namespace RhythmEngine.Model.Events
+﻿using RhythmEngine.Model.TimingConversion;
+
+namespace RhythmEngine.Model.Events
 {
     public abstract class RhythmEvent
     {
@@ -12,7 +14,7 @@
         /// Used by the game to determine if this object should be unloaded.
         /// </summary>
         /// <returns>False if we're sure this note has been hit or is offscreen when missed; true otherwise.</returns>
-        public virtual bool IsRelevant(double beat)
+        public virtual bool IsRelevant(double beat, double seconds)
         {
 	        return Time.Beats >= beat;
         }

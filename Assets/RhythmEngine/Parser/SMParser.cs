@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using RhythmEngine.Model;
 using RhythmEngine.Model.Events;
 using RhythmEngine.Model.Events.Hand;
+using RhythmEngine.Model.TimingConversion;
 using UnityEngine.XR;
 
 namespace RhythmEngine.Parser
@@ -42,14 +43,16 @@ namespace RhythmEngine.Parser
             var charts = new List<Chart>();
             var bpmChanges = new List<BeatEvent>();
             var bpmStops = new List<BeatEvent>();
-            BpmGraph bpmGraph = null;
+            TimingConverter bpmGraph = null;
 
             string title = "";
             string subTitle = "";
             string artist = "";
             string musicFile = "";
 
-            double offset = Double.NaN;
+            double offset = double.NaN;
+
+            double scrollSpeed = 40;//TODO don't hardcode this
 
             foreach (var command in contents.Split(';'))
             {
@@ -96,12 +99,12 @@ namespace RhythmEngine.Parser
                     case "notes":
                         if (bpmGraph == null)
                         {
-                            bpmGraph = BpmGraph.ParseBpm(bpmChanges, bpmStops);
+                            bpmGraph = TimingConverter.ParseBpm(bpmChanges, bpmStops);
                         }
 
                         if (bits[1].Replace(" ", "") == "dance-single")
                         {
-                            charts.Add(ParseChart(bits, bpmGraph));
+                            charts.Add(ParseChart(bits, bpmGraph, scrollSpeed));
                         }
                         else
                         {
@@ -144,7 +147,7 @@ namespace RhythmEngine.Parser
             return song;
         }
 
-        private Chart ParseChart(string[] tagData, BpmGraph bpm)
+        private Chart ParseChart(string[] tagData, TimingConverter bpm, double scrollSpeed)
         {
             //0 will be the note tag, skip
             string chartType = tagData[1].Replace(" ", "");
@@ -154,18 +157,20 @@ namespace RhythmEngine.Parser
             int meter = int.Parse(tagData[4].Replace(" ", ""));
             //grooveRadar data below; we're ignoring this for now
             //String grooves[] = tagData[5].replaceAll(" ", "").split(",");
+
+            NoteTimeFactory ntf = new NoteTimeFactory(bpm, TimingConverter.ParseNotespeed(new List<SpeedSection>(), scrollSpeed), true);
             string[] measureLines = tagData[6].Replace(" ", "").Split(',');
 
             var notes = new List<RhythmEvent>();
             for (int i = 0; i != measureLines.Length; i++)
             {
-                parseMeasure(i, measureLines[i], keysPerMeasure, notes, bpm);
+                parseMeasure(i, measureLines[i], keysPerMeasure, notes, ntf);
             }
 
             return new Chart(difficulty, bpm, notes);
         }
 
-        private void parseMeasure(int beat, string keyData, int keysPerMeasure, List<RhythmEvent> notes, BpmGraph bpm)
+        private void parseMeasure(int beat, string keyData, int keysPerMeasure, List<RhythmEvent> notes, NoteTimeFactory ntf)
         {
             if (keyData.Length % keysPerMeasure != 0)
             {
@@ -176,14 +181,14 @@ namespace RhythmEngine.Parser
             for (int i = 0; i != states; i++)
             {
                 double offset = (beat + (1.0 / states) * i) * 4;
-                parseState(offset, keyData.Substring(i * keysPerMeasure, keysPerMeasure), notes, bpm);
+                parseState(offset, keyData.Substring(i * keysPerMeasure, keysPerMeasure), notes, ntf);
             }
         }
 
         private HeldNote[] _activeHolds = new HeldNote[32];
         private int _activeHoldCount = 0;
 
-        private void parseState(double offset, string keys, List<RhythmEvent> notes, BpmGraph bpm)
+        private void parseState(double offset, string keys, List<RhythmEvent> notes, NoteTimeFactory ntf)
         {
             int totalActions = keys.Count(key => "124LF".Contains(key + "")) + _activeHoldCount;
 
@@ -196,11 +201,11 @@ namespace RhythmEngine.Parser
                     case '0': //none
                         break;
                     case '1': //normal
-                        notes.Add(new SimpleNote(bpm.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth),
+                        notes.Add(new SimpleNote(ntf.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth),
                             totalActions >= 2));
                         break;
                     case 'M': //mine
-                        notes.Add(new Mine(bpm.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth)));
+                        notes.Add(new Mine(ntf.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth)));
                         break;
                     case 'F': //fake
                         //notes.Add(new Mine(bpm.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth), true));
@@ -208,8 +213,8 @@ namespace RhythmEngine.Parser
                     case '2': //start hold
                     case '4': //start roll
                     {
-	                    notes.Add(new SimpleNote(bpm.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth), keys[i] == '4'));
-                        var hold = new HoldNote(bpm.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth),
+	                    notes.Add(new SimpleNote(ntf.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth), keys[i] == '4'));
+                        var hold = new HoldNote(ntf.FromBeat(offset), new LanePosition(i * laneWidth, laneWidth),
                             new SlidePoint[1]);
                         notes.Add(hold);
                         _activeHoldCount++;
@@ -219,7 +224,7 @@ namespace RhythmEngine.Parser
                     case '3': // end hold/roll
                     {
 	                    var activeHold = _activeHolds[i * laneWidth];
-	                    activeHold.SlidePoints[0] = new SlidePoint(activeHold, bpm.FromBeat(offset), activeHold.Position);
+	                    activeHold.SlidePoints[0] = new SlidePoint(activeHold, ntf.FromBeat(offset), activeHold.Position);
                         _activeHolds[i * laneWidth] = null;
                         _activeHoldCount--;
                     }

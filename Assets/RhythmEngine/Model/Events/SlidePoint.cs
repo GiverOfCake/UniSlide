@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using RhythmEngine.Model.TimingConversion;
+using UnityEngine;
 
 namespace RhythmEngine.Model.Events
 {
@@ -24,16 +25,16 @@ namespace RhythmEngine.Model.Events
 
 		public bool IsBezier => AnchorPoint != null;
 
-		//note: all render work is to happen in terms of beats, time doesn't make sense here
+		//note: all render work is to happen in terms of time (sus format reasons)
 
-		public float BeatAt(float pos)
+		public float TimeAt(float pos)
 		{
-			return Mathf.Lerp((float) Previous.Time.Beats, (float) Time.Beats, pos);
+			return Mathf.Lerp((float) Previous.Time.Seconds, (float) Time.Seconds, pos);
 		}
 
-		public float WidthAtBeat(double beat)
+		public float WidthAtTime(double beat)
 		{
-			float pos = Mathf.InverseLerp((float) Previous.Time.Beats, (float) Time.Beats, (float)beat);
+			float pos = Mathf.InverseLerp((float) Previous.Time.Seconds, (float) Time.Seconds, (float)beat);
 			return WidthAt(pos);
 		}
 
@@ -44,7 +45,7 @@ namespace RhythmEngine.Model.Events
 
 		public float PositionAtBeat(double beat)
 		{
-			float pos = Mathf.InverseLerp((float) Previous.Time.Beats, (float) Time.Beats, (float)beat);
+			float pos = Mathf.InverseLerp((float) Previous.Time.Seconds, (float) Time.Seconds, (float)beat);
 			return PositionAt(pos);
 		}
 
@@ -60,10 +61,10 @@ namespace RhythmEngine.Model.Events
 				return Mathf.Lerp(Previous.Position.Center, Position.Center, pos);
 		}
 
-		public int MeshSectionsNeeded(int sectionsPerBeat)
+		public int MeshSectionsNeeded(int sectionsPerSecond)
 		{
 			if (IsBezier)
-				return (int) (sectionsPerBeat * (Time.Beats - Previous.Time.Beats));
+				return (int) (sectionsPerSecond * (Time.Seconds - Previous.Time.Seconds));
 			else return 1;
 		}
 

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using RhythmEngine.Model.Events;
+using RhythmEngine.Model.TimingConversion;
 
 namespace RhythmEngine.Model
 {
@@ -19,14 +20,14 @@ namespace RhythmEngine.Model
         /// StepMania initially made this same mistake, however the distinction is made as BPM events are used to create BPM gimmicks.
         /// It is therefore useful for easier charts to exclude these gimmicks, and have harder charts contain BPM gimmicks unique to that difficulty.
         /// </summary>
-        public BpmGraph Rhythm;
+        public TimingConverter Rhythm;
 
         /// <summary>
         /// A list of all events that will occur on the playfield, sorted in order of start time.
         /// </summary>
         public List<RhythmEvent> Notes;
 
-        public Chart(string difficulty, BpmGraph rhythm, List<RhythmEvent> notes)
+        public Chart(string difficulty, TimingConverter rhythm, List<RhythmEvent> notes)
         {
             Difficulty = difficulty;
             Rhythm = rhythm;
