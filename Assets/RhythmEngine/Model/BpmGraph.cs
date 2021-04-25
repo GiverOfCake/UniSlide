@@ -27,11 +27,15 @@ namespace RhythmEngine.Model
 	        var barToBeatSections = new List<BpmSection>();
 	        double maxBar = 100_000;
 	        var lastBarSection = new BpmSection(0, maxBar, 0, maxBar * 4);//default bar section for default Beats Per Bar of 4
+	        barToBeatSections.Add(lastBarSection);
 	        foreach (var bar in barSections)
 	        {
 		        double startBeat = lastBarSection.BeatAt(bar.StartBar);
 		        double endBeat = (maxBar - bar.StartBar) * bar.NewBeatsPerBar + startBeat;
 		        var section = new BpmSection(bar.StartBar, maxBar, startBeat, endBeat);
+		        //modify the last section to end here
+		        lastBarSection.EndBeat = startBeat;
+		        lastBarSection.EndTime = bar.StartBar;
 
 		        Assert.AreApproximatelyEqual(bar.NewBeatsPerBar, (float)section.Slope());
 

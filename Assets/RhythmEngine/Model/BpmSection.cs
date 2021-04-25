@@ -11,8 +11,8 @@ namespace RhythmEngine.Model
     {
         public double StartTime;
         public double EndTime;
-        public readonly double StartBeat;
-        public readonly double EndBeat;
+        public double StartBeat;
+        public double EndBeat;
 
         public BpmSection(double startTime, double endTime, double startBeat, double endBeat)
         {
@@ -39,8 +39,11 @@ namespace RhythmEngine.Model
 
         public double BeatAt(double time)
         {
-            time -= StartTime;
-            return time * Slope() + StartBeat;
+	        double slope = Slope();
+	        if (double.IsNaN(slope))
+		        return StartBeat;
+
+	        return (time - StartTime) * slope + StartBeat;
         }
 
         public double TimeAt(double beat)
@@ -48,7 +51,7 @@ namespace RhythmEngine.Model
             beat -= StartBeat;
             double slope = Slope();
             //Special case to avoid divide by 0 (case for stops). In this case we consider the TimeAt to be the beginning of the stop.
-            if (slope == 0 || Double.IsNaN(slope)) 
+            if (slope == 0 || Double.IsNaN(slope))
                 return StartTime;
             else
                 return beat * (1.0 / Slope()) + StartTime;

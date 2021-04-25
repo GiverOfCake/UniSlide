@@ -38,7 +38,7 @@ namespace RhythmEngine.Parser
             input = input.Replace("string", "\"([^\"]*)\"");
             input = input.Replace("notes", @"([0-9a-z ]{2,})");
 
-            return new Regex(input, RegexOptions.IgnoreCase);
+            return new Regex( "^" + input + "$", RegexOptions.IgnoreCase);
         }
 
         private static int ParseB36(char c)
@@ -250,6 +250,7 @@ namespace RhythmEngine.Parser
 
             }
 			//We can now construct our BPM Graph, which means we now have everything needed to start parsing notes.
+			bpmChanges.Sort((a, b) => a.beat.CompareTo(b.beat));
             BpmGraph bpmGraph = BpmGraph.ParseBpm(bpmChanges, Array.Empty<BeatEvent>());
 
             var notes = new List<RhythmEvent>();
