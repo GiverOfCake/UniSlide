@@ -7,7 +7,7 @@
 	{
 		public double Seconds;
 		public double Beats;
-		private double _hitPosition;
+		public double StartPosition;
 
 		public TimingConverter ToPosition;
 		private bool _useBeatsForPosition;
@@ -18,14 +18,19 @@
 			Beats = beats;
 			ToPosition = toPosition;
 			_useBeatsForPosition = useBeatsForPosition;
-			_hitPosition = toPosition.ConvertForward(useBeatsForPosition ? beats : seconds);
+
+			StartPosition = ToPosition.ConvertForward(_useBeatsForPosition ? Beats : Seconds);
 		}
 
 		public float PositionAt(double seconds, double beats)
 		{
-			double input = _useBeatsForPosition ? beats : seconds;
-			double position = ToPosition.ConvertForward(input);
-			return (float)(_hitPosition - position);
+			double input;
+			if (_useBeatsForPosition)
+				input = Beats - beats;
+			else
+				input = Seconds - seconds;
+
+			return (float)ToPosition.ConvertForward(input);
 		}
 
 		public override string ToString()

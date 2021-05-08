@@ -144,13 +144,23 @@ namespace RhythmEngine.Model.TimingConversion
 
         public double ConvertForward(double time)
         {
+	        return FindForward(time).BeatAt(time);
+        }
+
+        public double FindSlopeForward(double time)
+        {
+	        return FindForward(time).Slope();
+        }
+
+        private TimingSection FindForward(double time)
+        {
             //check if last entry is valid for efficiency
             if(_forwardCache != null && _forwardCache.EndTime >= time && _forwardCache.StartTime <= time)
-                return _forwardCache.BeatAt(time);//reuse cache
+                return _forwardCache;//reuse cache
 
             //(trivial) edge case
             if(BpmSections.Count == 1)
-                return BpmSections[0].BeatAt(time);
+                return BpmSections[0];
 
             //binary search
             int min = 0;
@@ -165,12 +175,12 @@ namespace RhythmEngine.Model.TimingConversion
                     if(BpmSections[min].TimeInBounds(time))
                     {
                         _forwardCache = BpmSections[min];
-                        return BpmSections[min].BeatAt(time);
+                        return BpmSections[min];
                     }
                     else
                     {
                         _forwardCache = BpmSections[max];
-                        return BpmSections[max].BeatAt(time);
+                        return BpmSections[max];
                     }
                 }
                 TimingSection mid = BpmSections[midpt];
@@ -185,7 +195,7 @@ namespace RhythmEngine.Model.TimingConversion
                 else
                 {
                     _forwardCache = mid;
-                    return mid.BeatAt(time);
+                    return mid;
                 }
             }
         }
@@ -273,5 +283,11 @@ namespace RhythmEngine.Model.TimingConversion
     {
 	    public double Time;//converted from bar number/tick
 	    public double SpeedMultiplier;
+
+	    public SpeedSection(double time, double speedMultiplier)
+	    {
+		    Time = time;
+		    SpeedMultiplier = speedMultiplier;
+	    }
     }
 }

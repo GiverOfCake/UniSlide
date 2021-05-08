@@ -131,26 +131,50 @@ namespace RhythmEngine.Parser
         }
 
 
-        private readonly Regex _wave = CompileRule("WAVE string");//audio file
-        private readonly Regex _waveOffset = CompileRule("WAVEOFFSET double");//audio offset
+        private static readonly Regex Wave = CompileRule("WAVE string");//audio file
+        private static readonly Regex WaveOffset = CompileRule("WAVEOFFSET double");//audio offset
 
-        private readonly Regex _request = CompileRule("REQUEST string");//special attributes
+        private static readonly Regex Request = CompileRule("REQUEST string");//special attributes
 
 
-        private readonly Regex _measureBaseValue = CompileRule("MEASUREBS int");//int newBarBaseValue (from here in file onwards) (TODO understand this)
-        private readonly Regex _barLength = CompileRule("mmm02: int");//Hex barNumber, int newBeatsPerBar
+        private static readonly Regex MeasureBaseValue = CompileRule("MEASUREBS int");//int newBarBaseValue (from here in file onwards) (TODO understand this)
+        private static readonly Regex BarLength = CompileRule("mmm02: int");//Hex barNumber, int newBeatsPerBar
 
-        private readonly Regex _bpmDef = CompileRule("BPMzz: double");//B36 BpmId, double newBpm
-        private readonly Regex _bpmChange = CompileRule("mmm08: int");//Hex barNumber, int BpmId
-        private readonly Regex _hispeedDef = CompileRule("TILzz: string");//B36 HispeedId, string data
-        private readonly Regex _hispeedChange = CompileRule("HISPEED zz");//B36 HispeedId
-        private readonly Regex _hispeedOff = CompileRule("NOSPEED");
+        private static readonly Regex BpmDef = CompileRule("BPMzz: double");//B36 BpmId, double newBpm
+        private static readonly Regex BpmChange = CompileRule("mmm08: int");//Hex barNumber, int BpmId
+        private static readonly Regex HispeedDef = CompileRule("TILzz: string");//B36 HispeedId, string data
+        private static readonly Regex HispeedChange = CompileRule("HISPEED zz");//B36 HispeedId
+        private static readonly Regex HispeedOff = CompileRule("NOSPEED");
+        private static readonly Regex HispeedRule = new Regex("^\\s*(\\d+)'(\\d+):\\s*([0-9.\\-]+)\\s*$");//meas'tick:speed. Assumes commas already separated.
 
-        private readonly Regex _tap = CompileRule("mmm1x: notes");//Hex bar, B36 startLane, notes
-        private readonly Regex _hold = CompileRule("mmm2xy: notes");//Hex bar, B36 startLane, B36 channel, notes
-        private readonly Regex _slide = CompileRule("mmm3xy: notes");//Hex bar, B36 startLane, B36 channel, notes
-        private readonly Regex _airHold = CompileRule("mmm4xy: notes");//Hex bar, B36 startLane, B36 channel, notes
-        private readonly Regex _arrow = CompileRule("mmm5x: notes");//Hex bar, B36 startLane, notes
+        private static readonly Regex Tap = CompileRule("mmm1x: notes");//Hex bar, B36 startLane, notes
+        private static readonly Regex Hold = CompileRule("mmm2xy: notes");//Hex bar, B36 startLane, B36 channel, notes
+        private static readonly Regex Slide = CompileRule("mmm3xy: notes");//Hex bar, B36 startLane, B36 channel, notes
+        private static readonly Regex AirHold = CompileRule("mmm4xy: notes");//Hex bar, B36 startLane, B36 channel, notes
+        private static readonly Regex Arrow = CompileRule("mmm5x: notes");//Hex bar, B36 startLane, notes
+
+        private static NoteTimeFactory ParseHispeed(string hispeedRules, TimingConverter barToBeat, TimingConverter secondsToBeat, int ticksPerBeat, double scrollSpeedMult)
+        {
+	        var sections = new List<SpeedSection>();
+	        foreach (string rule in hispeedRules.Split(','))
+	        {
+		        var parsedRule = HispeedRule.Match(rule);
+		        if (!parsedRule.Success)
+			        throw new FormatException($"Incorrectly formatted hispeed rule: \"{rule}\" found in rules string \"{hispeedRules}\"");
+
+		        double barNumber = ParseDouble(parsedRule.Groups[1]);
+		        double ticksPerBar = ticksPerBeat * barToBeat.FindSlopeForward(barNumber + 0.5);//slope in this context is beats per bar
+		        barNumber += ParseDouble(parsedRule.Groups[2]) / ticksPerBar; //with ticks per bar, we can take the tick and convert it to a decimal bar position
+		        double beat = barToBeat.ConvertForward(barNumber);
+		        double time = secondsToBeat.ConvertReverse(beat); //bar -> beat -> seconds
+
+		        double newSpeed = ParseDouble(parsedRule.Groups[3]);
+
+		        sections.Add(new SpeedSection(time, newSpeed));
+	        }
+	        sections.Sort((a, b) => a.Time.CompareTo(b.Time));
+	        return new NoteTimeFactory(secondsToBeat, TimingConverter.ParseNotespeed(sections, scrollSpeedMult), false);
+        }
 
 
         public Song ParseSong(string filename)
@@ -180,6 +204,7 @@ namespace RhythmEngine.Parser
 
             var barSections = new List<BarSection>();
             var bpmDefinitions = new Dictionary<int, double>();//BPM ID -> BPM value
+            var hispeedDefinitions = new Dictionary<int, string>();//Hispeed ID -> definition string
 
             string difficulty = null;
 
@@ -194,30 +219,37 @@ namespace RhythmEngine.Parser
 
                 //now try all regex rules for this stage in sequence:
 
-                var match = _barLength.Match(line);
+                var match = BarLength.Match(line);
                 if (match.Success)
                 {
                     barSections.Add(new BarSection(ParseMmm(match.Groups[1]), ParseInt(match.Groups[2])));
                     continue;
                 }
 
-                match = _bpmDef.Match(line);
+                match = BpmDef.Match(line);
                 if (match.Success)
                 {
                     bpmDefinitions.Add(ParseZz(match.Groups[1]), ParseDouble(match.Groups[2]));
                     continue;
                 }
 
+                match = HispeedDef.Match(line);
+                if (match.Success)
+                {
+	                hispeedDefinitions.Add(ParseZz(match.Groups[1]), match.Groups[2].Value);
+                    continue;
+                }
+
                 //also parse song info while we're at it:
 
-                match = _wave.Match(line);
+                match = Wave.Match(line);
                 if (match.Success)
                 {
                     song.AudioFile = match.Groups[1].Value;
                     continue;
                 }
 
-                match = _waveOffset.Match(line);
+                match = WaveOffset.Match(line);
                 if (match.Success)
                 {
                     song.Offset = ParseDouble(match.Groups[1]);
@@ -233,6 +265,7 @@ namespace RhythmEngine.Parser
 
             var bpmChanges = new List<BeatEvent>();
             //PASS 2: construct internal rhythm model
+            //TODO merge this pass with the above one by storing the changes and then processing them here (faster and less copy-pasty)
             for (int i = 0; i < data.Count; i++)
             {
                 if(hasBeenRead[i])
@@ -243,7 +276,7 @@ namespace RhythmEngine.Parser
 
                 //now try all regex rules for this stage in sequence:
 
-                var match = _bpmChange.Match(line);
+                var match = BpmChange.Match(line);
                 if (match.Success)
                 {
                     bpmChanges.Add(new BeatEvent(barToBeat.ConvertForward(ParseMmm(match.Groups[1])), bpmDefinitions[ParseInt(match.Groups[2])]));
@@ -256,9 +289,15 @@ namespace RhythmEngine.Parser
             }
 			//We can now construct our BPM Graph, which means we now have everything needed to start parsing notes.
 			bpmChanges.Sort((a, b) => a.beat.CompareTo(b.beat));
-            TimingConverter bpmGraph = TimingConverter.ParseBpm(bpmChanges, Array.Empty<BeatEvent>());
+            var bpmGraph = TimingConverter.ParseBpm(bpmChanges, Array.Empty<BeatEvent>());
             var defaultNtf = new NoteTimeFactory(bpmGraph, TimingConverter.ParseNotespeed(new List<SpeedSection>(), scrollSpeed), false);
             var ntf = defaultNtf;
+
+            //parse the hispeeds and generate NTFs for them
+            var hispeedNtfs = new Dictionary<int, NoteTimeFactory>();
+            foreach (var definition in hispeedDefinitions)
+	            hispeedNtfs[definition.Key] = ParseHispeed(definition.Value, barToBeat, bpmGraph, ticksPerBeat, scrollSpeed);
+
 
             var notes = new List<RhythmEvent>();
 
@@ -277,7 +316,7 @@ namespace RhythmEngine.Parser
 
 	            //now try all regex rules for this stage in sequence:
 
-	            var match = _tap.Match(line);
+	            var match = Tap.Match(line);
 	            if (match.Success)
 	            {
 		            int barNum = ParseMmm(match.Groups[1]) + barOffset;
@@ -313,7 +352,7 @@ namespace RhythmEngine.Parser
 		            continue;
 	            }
 
-	            match = _arrow.Match(line);
+	            match = Arrow.Match(line);
 	            if (match.Success)
 	            {
 		            int barNum = ParseMmm(match.Groups[1]) + barOffset;
@@ -363,24 +402,38 @@ namespace RhythmEngine.Parser
 	            }
 	            //matching holds, airholds and slides are basically exactly the same, the only thing that changes is the output array
 
-	            match = _hold.Match(line);
+	            match = Hold.Match(line);
 	            if (match.Success)
 	            {
 		            ProcessChannelNotes(match, barOffset, barToBeat, ntf, holdData);
 		            continue;
 	            }
 
-	            match = _airHold.Match(line);
+	            match = AirHold.Match(line);
 	            if (match.Success)
 	            {
 		            ProcessChannelNotes(match, barOffset, barToBeat, ntf, airData);
 		            continue;
 	            }
 
-	            match = _slide.Match(line);
+	            match = Slide.Match(line);
 	            if (match.Success)
 	            {
 		            ProcessChannelNotes(match, barOffset, barToBeat, ntf, slideData);
+		            continue;
+	            }
+
+	            match = HispeedChange.Match(line);
+	            if (match.Success)
+	            {
+		            ntf = hispeedNtfs[ParseZz(match.Groups[1])];
+		            continue;
+	            }
+
+	            match = HispeedOff.Match(line);
+	            if (match.Success)
+	            {
+		            ntf = defaultNtf;
 		            continue;
 	            }
 

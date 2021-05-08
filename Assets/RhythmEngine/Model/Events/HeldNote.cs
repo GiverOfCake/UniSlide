@@ -46,6 +46,8 @@ namespace RhythmEngine.Model.Events
 	        var vertices = new Vector3[sectionCount * 2];
 	        var uvs = new Vector2[sectionCount * 2];
 
+	        //TODO switch to using 4 triangles per section instead of 2 to avoid distortion when next track point is a different width
+
 	        int sectionIndex = 0;
 	        foreach (var slidePoint in SlidePoints.Reverse())
 	        {
@@ -57,7 +59,7 @@ namespace RhythmEngine.Model.Events
 			        float center = slidePoint.PositionAt(t);
 			        float halfWidth = slidePoint.WidthAt(t) / 2;
 			        float time = slidePoint.TimeAt(t);
-			        float totalProgress = Mathf.InverseLerp((float) EndTime.Seconds, (float) Time.Seconds, time);
+			        float totalProgress = Mathf.InverseLerp((float) Time.Seconds, (float) EndTime.Seconds, time);
 			        int v0 = sectionIndex * 2;
 			        int v1 = v0 + 1;
 			        vertices[v0] = new Vector3(center - halfWidth, 0f, totalProgress);
@@ -71,8 +73,8 @@ namespace RhythmEngine.Model.Events
 	        //final vertex: the start point.
 	        vertices[sectionIndex * 2]     = new Vector3(Position.Center - Position.Width / 2, 0f, 0f);
 	        vertices[sectionIndex * 2 + 1] = new Vector3(Position.Center + Position.Width / 2, 0f, 0f);
-	        uvs[sectionIndex * 2]          = new Vector2(TrackUvStart, 1);
-	        uvs[sectionIndex * 2 + 1]      = new Vector2(TrackUvEnd, 1);
+	        uvs[sectionIndex * 2]          = new Vector2(TrackUvStart, 0);
+	        uvs[sectionIndex * 2 + 1]      = new Vector2(TrackUvEnd, 0);
 	        mesh.SetVertices(vertices);
 	        mesh.SetUVs(0, uvs);
 	        for (int i = 0; i < sectionCount - 1; i++)

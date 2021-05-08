@@ -21,7 +21,7 @@ namespace Game.Play.Events.Notes
 		{
 			_meshFilter = GetComponent<MeshFilter>();
 			_meshFilter.mesh = heldNote.GenerateTrackMesh(10);
-			double length = heldNote.EndTime.PositionAt(0, 0) - heldNote.Time.PositionAt(0, 0);
+			double length = heldNote.EndTime.StartPosition - heldNote.Time.StartPosition;
 
 			if (heldNote.Time.ToPosition != heldNote.EndTime.ToPosition)
 			{

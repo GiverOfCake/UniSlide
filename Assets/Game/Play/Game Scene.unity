@@ -261,7 +261,7 @@ MonoBehaviour:
   ChartFolder: D:\Chuni\Charts\DIY\TLTBeepBeep
   DifficultyId: 0
   AutoPlay: 0
-  StartFrom: 0
+  StartFrom: 70
 --- !u!1 &653260035
 GameObject:
   m_ObjectHideFlags: 0
@@ -999,7 +999,7 @@ MonoBehaviour:
   source: {fileID: 1821310399}
   beat: 0
   time: 0
-  syncOffset: -0.111207
+  syncOffset: 0
 --- !u!4 &1821310401
 Transform:
   m_ObjectHideFlags: 0

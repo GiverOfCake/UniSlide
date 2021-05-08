@@ -32,21 +32,9 @@ namespace RhythmEngine.Model.Events
 			return Mathf.Lerp((float) Previous.Time.Seconds, (float) Time.Seconds, pos);
 		}
 
-		public float WidthAtTime(double beat)
-		{
-			float pos = Mathf.InverseLerp((float) Previous.Time.Seconds, (float) Time.Seconds, (float)beat);
-			return WidthAt(pos);
-		}
-
 		public float WidthAt(float pos)
 		{
 			return Mathf.Lerp(Previous.Position.Width, Position.Width, pos);
-		}
-
-		public float PositionAtBeat(double beat)
-		{
-			float pos = Mathf.InverseLerp((float) Previous.Time.Seconds, (float) Time.Seconds, (float)beat);
-			return PositionAt(pos);
 		}
 
 		public float PositionAt(float pos)
@@ -63,7 +51,8 @@ namespace RhythmEngine.Model.Events
 
 		public int MeshSectionsNeeded(int sectionsPerSecond)
 		{
-			if (IsBezier)
+			//extra hack for better rendering: if width differs, use high mesh precision (will be fixed when we render sections with 4 triangles instead of 2)
+			if (IsBezier | Position.Width != Previous.Position.Width)
 				return (int) (sectionsPerSecond * (Time.Seconds - Previous.Time.Seconds));
 			else return 1;
 		}

@@ -80,7 +80,7 @@ namespace Game.Play.Events.Notes
 				{
 					if (slidePoint.Visible)
 					{
-						float vOff = note.Time.PositionAt(0, 0) - slidePoint.Time.PositionAt(0, 0);
+						float vOff = (float)(slidePoint.Time.StartPosition - note.Time.StartPosition);
 						InitNoteMesh(slidePoint.PrimaryTextureId, slidePoint.Position, vOff);
 					}
 				}
